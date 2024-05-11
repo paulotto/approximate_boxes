@@ -42,7 +42,12 @@ After building the project, you can run the example program with the following c
 ./bin/ApproximateBoxesExample "../resources/ellipsoid.off"
 ```
 This command will generate a Gmsh file with the boxes approximating the volume of the ellipsoid, 
-placed in the [resources](./resources) folder.
+placed in the [resources](./resources) folder. 
+
+>**Note**: The degree of approximation is primarily determined by the number of nodes used for the surface in the OFF file.
+The more nodes, the more accurate the approximation will be and the smaller the boxes.
+Furthermore, the approximation can be influenced by the max depth of the octree, which can be set 
+with the ``` ApproximateBoxes<>::SetOctreeMaxDepth(unsigned int depth) ``` function.
 
 | ![](resources/ellipsoid_orig.png) | ![](resources/ellipsoid_orig_approx.png) | ![](resources/ellipsoid_approx.png) |
 |:---------------------------------:|:----------------------------------------:|:-----------------------------------:|  
