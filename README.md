@@ -44,5 +44,9 @@ After building the project, you can run the example program with the following c
 This command will generate a Gmsh file with the boxes approximating the volume of the ellipsoid, 
 placed in the [resources](./resources) folder.
 
+| ![](resources/ellipsoid_orig.png) | ![](resources/ellipsoid_orig_approx.png) | ![](resources/ellipsoid_approx.png) |
+|:---------------------------------:|:----------------------------------------:|:-----------------------------------:|  
+|             Ellipsoid             |        Ellipsoid + Approximation         |          Approximation Cut          |
+
 ## License
 This project is licensed under the LGPL-3.0 License. See the [LICENSE](LICENSE) file for more details.
