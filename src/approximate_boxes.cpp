@@ -12,7 +12,7 @@
 
 #include <filesystem>
 
-#include <CGAL/IO/Polyhedron_OFF_iostream.h>
+#include <CGAL/Surface_mesh/IO/OFF.h>
 #include <CGAL/Exact_predicates_exact_constructions_kernel.h>
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 
@@ -33,7 +33,7 @@ namespace approx_boxes {
     }
 
     template<typename Kernel>
-    void ApproximateBoxes<Kernel>::DumpPolyhedronToGmesh(const std::string& filename) {
+    void ApproximateBoxes<Kernel>::DumpPolyhedraToGmesh(const std::string& filename) {
         hex_mesh_.WriteGmshFile(filename);
     }
 
@@ -82,35 +82,6 @@ namespace approx_boxes {
     }
 
     template<typename Kernel>
-    void ApproximateBoxes<Kernel>::ExtractNodesInsideBoundary(Octree& octree,
-                                                              Node_vector& nodes_inside) {
-        for (const auto& node: octree.template traverse<Preorder_traversal>()) {
-            if (const auto& node_coordinates = octree.barycenter(node);
-                IsPointInside(node_coordinates, mesh_) != CGAL::ON_UNBOUNDED_SIDE) {
-                nodes_inside.push_back(node);
-            }
-        }
-    }
-
-    template<typename Kernel>
-    void ApproximateBoxes<Kernel>::RemoveParentNodes(Octree& octree, Node_vector& nodes_inside) {
-        std::set<typename Octree::Node> nodes_to_remove;
-
-        nodes_inside.erase(std::remove_if(nodes_inside.begin(), nodes_inside.end(),
-                                          [&octree](const auto& node) {
-                                              return node == octree.root();
-                                          }));
-
-        for (const auto& node: nodes_inside) {
-            nodes_to_remove.insert(node.parent());
-        }
-
-        for (const auto& node: nodes_to_remove) {
-            nodes_inside.erase(std::remove(nodes_inside.begin(), nodes_inside.end(), node), nodes_inside.end());
-        }
-    }
-
-    template<typename Kernel>
     CGAL::Bounded_side ApproximateBoxes<Kernel>::IsPointInside(const Point& p, const SurfaceMesh& msh) {
         const CGAL::Side_of_triangle_mesh<SurfaceMesh, Kernel> inside(msh);
 
@@ -141,6 +112,35 @@ namespace approx_boxes {
         }
     }
 
-    template class ApproximateBoxes<CGAL::Simple_cartesian<double>>;
+    template<typename Kernel>
+    void ApproximateBoxes<Kernel>::ExtractNodesInsideBoundary(Octree& octree,
+                                                              Node_vector& nodes_inside) {
+        for (const auto& node: octree.template traverse<Preorder_traversal>()) {
+            if (const auto& node_coordinates = octree.barycenter(node);
+                IsPointInside(node_coordinates, mesh_) == CGAL::ON_BOUNDED_SIDE) {
+                nodes_inside.push_back(node);
+            }
+        }
+    }
+
+    template<typename Kernel>
+    void ApproximateBoxes<Kernel>::RemoveParentNodes(Octree& octree, Node_vector& nodes_inside) {
+        std::set<typename Octree::Node> nodes_to_remove;
+
+        nodes_inside.erase(std::remove_if(nodes_inside.begin(), nodes_inside.end(),
+                                          [&octree](const auto& node) {
+                                              return node == octree.root();
+                                          }));
+
+        for (const auto& node: nodes_inside) {
+            nodes_to_remove.insert(node.parent());
+        }
+
+        for (const auto& node: nodes_to_remove) {
+            nodes_inside.erase(std::remove(nodes_inside.begin(), nodes_inside.end(), node), nodes_inside.end());
+        }
+    }
+
+    template class ApproximateBoxes<CGAL::Simple_cartesian<double> >;
     template class ApproximateBoxes<CGAL::Exact_predicates_inexact_constructions_kernel>;
 } // namespace approx_boxes

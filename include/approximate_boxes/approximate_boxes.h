@@ -18,7 +18,6 @@
 
 #include <CGAL/Simple_cartesian.h>
 #include <CGAL/Octree.h>
-#include <CGAL/IO/STL.h>
 #include <CGAL/Surface_mesh.h>
 #include <CGAL/Polyhedron_3.h>
 #include <CGAL/Side_of_triangle_mesh.h>
@@ -34,6 +33,8 @@ namespace approx_boxes {
      */
     template<typename Kernel>
     class ApproximateBoxes {
+        // Type definitions
+
         using Point = typename Kernel::Point_3;
         using Triangle = typename Kernel::Triangle_3;
         using Point_vector = std::vector<Point>;
@@ -49,39 +50,103 @@ namespace approx_boxes {
         using HalfedgeDS = Polyhedron::HalfedgeDS;
 
         public:
+            /**
+             * @brief Constructor.
+             * @param file The path to the OFF file to read the mesh from.
+             */
             explicit ApproximateBoxes(const std::string& file);
 
+            /**
+             * @brief Destructor.
+             */
             virtual ~ApproximateBoxes() {
                 surface_file_stream_.close();
             }
 
+            /**
+             * @brief Get the all approximation boxes combined in one polyhedron.
+             * @return The polyhedron combining the surfaces of all boxes.
+             */
             Polyhedron GetPolyhedronMesh() const {
                 return polyhedron_combined_;
             }
 
+            /**
+             * @brief Get the list of all approximation boxes.
+             * @return The list of polyhedra representing the approximation boxes.
+             */
+            std::list<Polyhedron> GetPolyhedronList() const {
+                return polyhedron_list_;
+            }
+
+            /**
+             * @brief Set the maximum depth of the octree.
+             * @param depth The maximum depth of the octree.
+             */
             void SetOctreeMaxDepth(unsigned int depth) {
                 octree_max_depth_ = depth;
             }
 
+            /**
+             * @brief Set the maximum number of inliers for the octree, i.e., the maximum number
+             * of points inside the bounding box of a leaf node.
+             * @param inliers The maximum number of inliers for the octree.
+             */
             void SetOctreeMaxInliers(unsigned int inliers) {
                 octree_max_inliers_ = inliers;
             }
 
-            virtual void DumpPolyhedronToGmesh(const std::string& filename);
+            /**
+             * @brief Dump the polyhedra to a Gmsh file.
+             * @param filename The path to the Gmsh file to write the polyhedra to.
+             */
+            virtual void DumpPolyhedraToGmesh(const std::string& filename);
 
+            /**
+             * @brief Dump the combined polyhedron to an OFF file.
+             * @param filename The path to the OFF file to write the combined polyhedron to.
+             */
             virtual void DumpPolyhedronToOFF(const std::string& filename);
 
+            /**
+             * @brief Approximate the geometry of the mesh with bounding boxes.
+             */
             virtual void ApproximateGeometry();
 
-            virtual void ExtractNodesInsideBoundary(Octree& octree, Node_vector& nodes_inside);
-
-            virtual void RemoveParentNodes(Octree& octree, Node_vector& nodes_inside);
-
+            /**
+             * @brief Check if a point is inside the mesh.
+             * @param p The point to check.
+             * @return The side of the point relative to the mesh.
+             */
             static CGAL::Bounded_side IsPointInside(const Point& p, const SurfaceMesh& msh);
 
+            /**
+             * @brief Create a surface mesh from a list of bounding boxes.
+             * @param bboxes The list of bounding boxes to create the surface mesh from.
+             * @param mesh The surface mesh to create.
+             */
             static void CreateSurfaceMeshFromBboxes(const std::vector<CGAL::Bbox_3>& bboxes, SurfaceMesh& mesh);
 
         protected:
+            /**
+             * @brief Extract the nodes inside the boundary of the mesh.
+             * @param octree The octree to extract the nodes from.
+             * @param nodes_inside The list of nodes inside the boundary.
+             */
+            virtual void ExtractNodesInsideBoundary(Octree& octree, Node_vector& nodes_inside);
+
+            /**
+             * @brief Remove the parent nodes from the list of nodes inside the boundary.
+             * @param octree The octree to remove the parent nodes from.
+             * @param nodes_inside The list of nodes inside the boundary.
+             */
+            virtual void RemoveParentNodes(Octree& octree, Node_vector& nodes_inside);
+
+            /**
+             * @brief Get all points of a surface mesh.
+             * @param mesh The mesh to get the points from.
+             * @return The list of points of the mesh.
+             */
             virtual std::vector<Point> GetAllPoints(const SurfaceMesh& mesh) {
                 std::vector<Point> points;
                 for (auto v: mesh.vertices()) {

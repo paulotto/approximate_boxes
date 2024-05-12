@@ -25,16 +25,25 @@ namespace approx_boxes {
      */
     class BuildPolyhedronFromBbox
             : public CGAL::Modifier_base<CGAL::Polyhedron_3<CGAL::Simple_cartesian<double> >::HalfedgeDS> {
+        // Type definitions
+
         using Kernel = CGAL::Simple_cartesian<double>;
         using Point = Kernel::Point_3;
         using Polyhedron = CGAL::Polyhedron_3<Kernel>;
         using HalfedgeDS = Polyhedron::HalfedgeDS;
 
         public:
+            /**
+             * @brief Constructor.
+             * @param bbox The bounding box to build the polyhedron from.
+             */
             explicit BuildPolyhedronFromBbox(const CGAL::Bbox_3& bbox)
                 : Modifier_base(), bbox_(bbox) {
             }
 
+            /**
+             * @brief Builds the polyhedron from the bounding box.
+             */
             void operator()(HalfedgeDS& hds) override;
 
         private:

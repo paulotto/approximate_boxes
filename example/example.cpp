@@ -10,7 +10,6 @@
  * @date 11.05.2024
  */
 
-#include <CGAL/Exact_predicates_exact_constructions_kernel.h>
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 
 #include "approximate_boxes/approximate_boxes.h"
@@ -18,7 +17,7 @@
 
 int main(int argc, char* argv[]) {
 
-    using Epic = CGAL::Exact_predicates_inexact_constructions_kernel;
+    using EpicKernel = CGAL::Exact_predicates_inexact_constructions_kernel;
     using CartKernel = CGAL::Simple_cartesian<double>;
 
     using namespace approx_boxes;
@@ -35,7 +34,7 @@ int main(int argc, char* argv[]) {
 
     filename.erase(filename.size() - 3);
     filename += "msh";
-    abox.DumpPolyhedronToGmesh(filename);
+    abox.DumpPolyhedraToGmesh(filename);
 
     return 0;
 }

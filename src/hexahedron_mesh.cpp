@@ -33,42 +33,6 @@ namespace approx_boxes {
     }
 
     template<typename Polyhedron_T>
-    void HexahedronMesh<Polyhedron_T>::AddNodes() {
-        for (const auto& polyhedron: polyhedron_list_) {
-            for (const auto& vertex: polyhedron.points()) {
-                auto node_it = std::find_if(nodes_.begin(), nodes_.end(), [&vertex](const auto& n) {
-                    return n->pos == vertex;
-                });
-
-                if (node_it != nodes_.end()) {
-                    node_polyhedron_multimap_.insert({*node_it, &polyhedron});
-                } else {
-                    auto* node = new Node();
-                    node->pos = vertex;
-                    nodes_.insert(node);
-                    node_polyhedron_multimap_.insert({node, &polyhedron});
-                }
-            }
-        }
-
-        unsigned int tag{1};
-        for (const auto& node: nodes_) {
-            node->tag = tag++;
-        }
-    }
-
-    template<typename Polyhedron_T>
-    void HexahedronMesh<Polyhedron_T>::AddElements() {
-        unsigned int elem_tag{1};
-        for (const auto& poly: polyhedron_list_) {
-            auto keys = GetKeysWithSameValue<Node*, const Polyhedron_T*>(
-                node_polyhedron_multimap_, &poly);
-
-            elements_.push_back(new Element(elem_tag++, keys, ComputeBoundingBoxPolyhedron(poly)));
-        }
-    }
-
-    template<typename Polyhedron_T>
     void HexahedronMesh<Polyhedron_T>::WriteGmshFile(const std::string& filename) {
         if (std::filesystem::exists(filename)) {
             std::cout << "[HexahedronMesh<Polyhedron_T>::WriteGmshFile] File already exists: " << filename <<
@@ -219,6 +183,42 @@ namespace approx_boxes {
         std::stable_sort(nodes.begin(), nodes.end(), [](const Node* a, const Node* b) {
             return a->pos.z() < b->pos.z();
         });
+    }
+
+    template<typename Polyhedron_T>
+    void HexahedronMesh<Polyhedron_T>::AddNodes() {
+        for (const auto& polyhedron: polyhedron_list_) {
+            for (const auto& vertex: polyhedron.points()) {
+                auto node_it = std::find_if(nodes_.begin(), nodes_.end(), [&vertex](const auto& n) {
+                    return n->pos == vertex;
+                });
+
+                if (node_it != nodes_.end()) {
+                    node_polyhedron_multimap_.insert({*node_it, &polyhedron});
+                } else {
+                    auto* node = new Node();
+                    node->pos = vertex;
+                    nodes_.insert(node);
+                    node_polyhedron_multimap_.insert({node, &polyhedron});
+                }
+            }
+        }
+
+        unsigned int tag{1};
+        for (const auto& node: nodes_) {
+            node->tag = tag++;
+        }
+    }
+
+    template<typename Polyhedron_T>
+    void HexahedronMesh<Polyhedron_T>::AddElements() {
+        unsigned int elem_tag{1};
+        for (const auto& poly: polyhedron_list_) {
+            auto keys = GetKeysWithSameValue<Node*, const Polyhedron_T*>(
+                node_polyhedron_multimap_, &poly);
+
+            elements_.push_back(new Element(elem_tag++, keys, ComputeBoundingBoxPolyhedron(poly)));
+        }
     }
 
     template class HexahedronMesh<CGAL::Polyhedron_3<CGAL::Simple_cartesian<double> > >;
