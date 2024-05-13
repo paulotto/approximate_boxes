@@ -15,6 +15,7 @@
 
 #include <CGAL/Polyhedron_3.h>
 
+#include "approximate_boxes/utils.h"
 #include "approximate_boxes/hexahedron_mesh.h"
 
 
@@ -157,6 +158,20 @@ namespace approx_boxes {
     }
 
     template<typename Polyhedron_T>
+    double HexahedronMesh<Polyhedron_T>::SmallestEdgeLength(const Polyhedron_T& polyhedron) {
+        double min_length = std::numeric_limits<double>::max();
+
+        for (const auto& edge: polyhedron.edges()) {
+            double length = CGAL::squared_distance(edge.vertex()->point(), edge.opposite()->vertex()->point());
+            if (length < min_length) {
+                min_length = length;
+            }
+        }
+
+        return std::sqrt(min_length);
+    }
+
+    template<typename Polyhedron_T>
     void HexahedronMesh<Polyhedron_T>::SortNodesForGmsh(std::vector<Node*>& nodes) {
         // First, find the center of the nodes
         double center_x = 0.0, center_y = 0.0, center_z = 0.0;
@@ -174,8 +189,8 @@ namespace approx_boxes {
 
         // Then, sort the nodes based on their angle from the center in the XY plane
         std::sort(nodes.begin(), nodes.end(), [&center](const Node* a, const Node* b) {
-            double angleA = std::atan2(a->pos.y() - center.pos.y(), a->pos.x() - center.pos.x());
-            double angleB = std::atan2(b->pos.y() - center.pos.y(), b->pos.x() - center.pos.x());
+            const double angleA = std::atan2(a->pos.y() - center.pos.y(), a->pos.x() - center.pos.x());
+            const double angleB = std::atan2(b->pos.y() - center.pos.y(), b->pos.x() - center.pos.x());
             return angleA < angleB;
         });
 
@@ -187,9 +202,22 @@ namespace approx_boxes {
 
     template<typename Polyhedron_T>
     void HexahedronMesh<Polyhedron_T>::AddNodes() {
+        double tolerance = CalculateTolerance();
+        same_node_tolerance_ = tolerance;
+
+        if (!CheckPolyhedraNodes(polyhedron_list_)) {
+            throw std::runtime_error("[HexahedronMesh<Polyhedron_T>::AddNodes] Not all polyhedra have 8 nodes!");
+        }
+
+        std::cout << "[HexahedronMesh] Add nodes to the mesh...\n";
+
+        const double total_polyhedrons = polyhedron_list_.size();
+        int processed_polyhedrons = 0;
+
         for (const auto& polyhedron: polyhedron_list_) {
             for (const auto& vertex: polyhedron.points()) {
-                auto node_it = std::find_if(nodes_.begin(), nodes_.end(), [&vertex](const auto& n) {
+                auto node_it = std::find_if(nodes_.begin(), nodes_.end(), [&vertex, tolerance](const auto& n) {
+                    // return CGAL::squared_distance(n->pos, vertex) < tolerance * tolerance;
                     return n->pos == vertex;
                 });
 
@@ -202,23 +230,66 @@ namespace approx_boxes {
                     node_polyhedron_multimap_.insert({node, &polyhedron});
                 }
             }
+            processed_polyhedrons++;
+            utils::PrintProgress(static_cast<double>(processed_polyhedrons) / total_polyhedrons);
         }
+        std::cout << "\n\n";
 
         unsigned int tag{1};
         for (const auto& node: nodes_) {
             node->tag = tag++;
         }
+
+#if DEBUG
+        std::cout << "[HexahedronMesh<Polyhedron_T>::AddNodes] Number of nodes: " << nodes_.size() << '\n';
+#endif
     }
 
     template<typename Polyhedron_T>
     void HexahedronMesh<Polyhedron_T>::AddElements() {
         unsigned int elem_tag{1};
+
+        std::cout << "[HexahedronMesh] Add elements to the mesh...\n";
+
+        const double total_polyhedrons = polyhedron_list_.size();
+        int processed_polyhedrons = 0;
+
         for (const auto& poly: polyhedron_list_) {
             auto keys = GetKeysWithSameValue<Node*, const Polyhedron_T*>(
                 node_polyhedron_multimap_, &poly);
 
             elements_.push_back(new Element(elem_tag++, keys, ComputeBoundingBoxPolyhedron(poly)));
+
+            processed_polyhedrons++;
+            utils::PrintProgress(static_cast<double>(processed_polyhedrons) / total_polyhedrons);
         }
+        std::cout << "\n\n";
+
+#if DEBUG
+        for (const auto& elem: elements_) {
+            if (elem->nodes.size() != 8) {
+                std::cerr << "[HexahedronMesh<Polyhedron_T>::AddElements] Element has " << elem->nodes.size()
+                        << " nodes instead of 8.\n";
+            }
+        }
+        std::cout << "[HexahedronMesh<Polyhedron_T>::AddElements] Number of elements: " << elements_.size() << '\n';
+#endif
+    }
+
+    template<typename Polyhedron_T>
+    double HexahedronMesh<Polyhedron_T>::CalculateTolerance() {
+        double min_edge_length = std::numeric_limits<double>::max();
+
+        for (const auto& polyhedron: polyhedron_list_) {
+            double edge_length = SmallestEdgeLength(polyhedron);
+            if (edge_length < min_edge_length) {
+                min_edge_length = edge_length;
+            }
+        }
+
+        // Set the tolerance to a fraction of the smallest edge length
+        // The fraction can be adjusted as needed
+        return min_edge_length * 0.1;
     }
 
     template class HexahedronMesh<CGAL::Polyhedron_3<CGAL::Simple_cartesian<double> > >;

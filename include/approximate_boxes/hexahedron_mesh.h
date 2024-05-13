@@ -20,6 +20,8 @@
 
 #include <CGAL/Simple_cartesian.h>
 
+#define DEBUG 0
+
 
 namespace approx_boxes {
     /**
@@ -127,6 +129,8 @@ namespace approx_boxes {
             virtual void BuildMesh() {
                 AddNodes();
                 AddElements();
+                std::cout << "[HexahedronMesh] Built mesh with " << nodes_.size() << " nodes and " << elements_.size()
+                        << " elements." << '\n';
             }
 
             /**
@@ -136,6 +140,7 @@ namespace approx_boxes {
             virtual void BuildMesh(const std::string& gmsh_file) {
                 BuildMesh();
                 WriteGmshFile(gmsh_file);
+                std::cout << "[HexahedronMesh] Wrote mesh to Gmsh file: " << gmsh_file << '\n';
             }
 
             /**
@@ -160,6 +165,13 @@ namespace approx_boxes {
             static std::set<K> GetKeysWithSameValue(const std::multimap<K, V>& mmap, const V& value);
 
             /**
+             * @brief Get the smallest edge length of a polyhedron.
+             * @param polyhedron The polyhedron to get the smallest edge length from.
+             * @return The smallest edge length.
+             */
+            static double SmallestEdgeLength(const Polyhedron_T& polyhedron);
+
+            /**
              * @brief This function assumes that the nodes are already arranged in a way that forms a hexahedron.
              * The nodes are sorted in-place according to the Gmsh ordering for a hexahedron:
              * 1. Bottom face, listed in counter-clockwise order as viewed from above.
@@ -179,7 +191,28 @@ namespace approx_boxes {
              */
             virtual void AddElements();
 
+            /**
+             * @brief Calculate the tolerance to determine if two nodes are the same.
+             */
+            virtual double CalculateTolerance();
+
+            /**
+             * @brief Checks if the polyhedra in the given list have exactly 8 nodes.
+             * @param polyhedron_list A list of polyhedra.
+             * @return True if all polyhedra have exactly 8 nodes, false otherwise.
+             */
+            virtual bool CheckPolyhedraNodes(const std::list<Polyhedron_T>& polyhedron_list) {
+                for (const auto& polyhedron: polyhedron_list) {
+                    if (polyhedron.size_of_vertices() != 8) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+
         private:
+            double same_node_tolerance_{1.0e-6};
+
             std::set<Node*> nodes_{};
             std::vector<Element*> elements_{};
             std::list<Polyhedron_T> polyhedron_list_{};

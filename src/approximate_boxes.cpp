@@ -16,6 +16,7 @@
 #include <CGAL/Exact_predicates_exact_constructions_kernel.h>
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 
+#include "approximate_boxes/utils.h"
 #include "approximate_boxes/approximate_boxes.h"
 #include "approximate_boxes/build_polyhedron_from_bbox.h"
 
@@ -24,11 +25,12 @@ namespace approx_boxes {
     template<typename Kernel>
     ApproximateBoxes<Kernel>::ApproximateBoxes(const std::string& file)
         : surface_file_stream_(file, std::ifstream::in) {
+        std::cout << "[ApproximateBoxes] Reading OFF file: " << file << "...\n";
         const bool success = CGAL::IO::read_OFF(surface_file_stream_, mesh_,
                                                 CGAL::parameters::verbose(true));
 
         if (!success) {
-            throw std::runtime_error("Failed to read OFF file: " + file);
+            throw std::runtime_error("[ApproximateBoxes] Failed to read OFF file!");
         }
     }
 
@@ -69,13 +71,27 @@ namespace approx_boxes {
 
         RemoveParentNodes(octree, nodes_inside);
 
-        for (const auto& node: nodes_inside) {
-            BuildPolyhedronFromBbox build_polyhedron(octree.bbox(node));
+        std::vector<CGAL::Bbox_3> bboxes;
+        ExtractBoundingBoxes(octree, nodes_inside, bboxes);
+
+        if (divide_larger_bboxes_) DivideLargerBoxes(bboxes);
+
+        std::cout << "[ApproximateBoxes] Building polyhedra from " << bboxes.size() << " bounding boxes..." << '\n';
+
+        const auto total_bboxes = static_cast<const double>(bboxes.size());
+        int processed_bboxes = 0;
+
+        for (const auto& bbox: bboxes) {
+            BuildPolyhedronFromBbox build_polyhedron(bbox);
             polyhedron_combined_.delegate(build_polyhedron);
             Polyhedron poly{};
             poly.delegate(build_polyhedron);
             polyhedron_list_.push_back(poly);
+
+            processed_bboxes++;
+            utils::PrintProgress(static_cast<double>(processed_bboxes) / total_bboxes);
         }
+        std::cout << "\n\n";
 
         hex_mesh_.SetPolyhedronList(polyhedron_list_);
         hex_mesh_.BuildMesh();
@@ -86,6 +102,61 @@ namespace approx_boxes {
         const CGAL::Side_of_triangle_mesh<SurfaceMesh, Kernel> inside(msh);
 
         return inside(p);
+    }
+
+    template<typename Kernel>
+    double ApproximateBoxes<Kernel>::FindSmallestBoxSize(const std::vector<CGAL::Bbox_3>& boxes) {
+        double min_size = std::numeric_limits<double>::max();
+
+        for (const auto& box: boxes) {
+            if (const double size = box.xmax() - box.xmin(); size < min_size) {
+                min_size = size;
+            }
+        }
+
+        return min_size;
+    }
+
+    template<typename Kernel>
+    void ApproximateBoxes<Kernel>::ExtractBoundingBoxes(const Octree& octree,
+                                                        const Node_vector& nodes,
+                                                        std::vector<CGAL::Bbox_3>& bboxes) {
+        for (const auto& node: nodes) {
+            bboxes.push_back(octree.bbox(node));
+        }
+    }
+
+    template<typename Kernel>
+    void ApproximateBoxes<Kernel>::DivideLargerBoxes(std::vector<CGAL::Bbox_3>& boxes) {
+        const double min_size = FindSmallestBoxSize(boxes);
+
+        std::vector<CGAL::Bbox_3> divided_boxes;
+        for (const auto& box: boxes) {
+            if (const double size = box.xmax() - box.xmin(); size > min_size) {
+                // Divide the bounding box into smaller boxes of size min_size
+                const int num_divisions = static_cast<int>(size / min_size);
+                for (int i = 0; i < num_divisions; ++i) {
+                    for (int j = 0; j < num_divisions; ++j) {
+                        for (int k = 0; k < num_divisions; ++k) {
+                            // Create a new bounding box of size min_size
+                            CGAL::Bbox_3 new_box(
+                                box.xmin() + i * min_size,
+                                box.ymin() + j * min_size,
+                                box.zmin() + k * min_size,
+                                box.xmin() + (i + 1) * min_size,
+                                box.ymin() + (j + 1) * min_size,
+                                box.zmin() + (k + 1) * min_size
+                            );
+                            divided_boxes.push_back(new_box);
+                        }
+                    }
+                }
+            } else {
+                divided_boxes.push_back(box);
+            }
+        }
+
+        boxes = divided_boxes;
     }
 
     template<typename Kernel>
@@ -127,10 +198,12 @@ namespace approx_boxes {
     void ApproximateBoxes<Kernel>::RemoveParentNodes(Octree& octree, Node_vector& nodes_inside) {
         std::set<typename Octree::Node> nodes_to_remove;
 
-        nodes_inside.erase(std::remove_if(nodes_inside.begin(), nodes_inside.end(),
-                                          [&octree](const auto& node) {
-                                              return node == octree.root();
-                                          }));
+        if (remove_root_node_) {
+            nodes_inside.erase(std::remove_if(nodes_inside.begin(), nodes_inside.end(),
+                                              [&octree](const auto& node) {
+                                                  return node == octree.root();
+                                              }));
+        }
 
         for (const auto& node: nodes_inside) {
             nodes_to_remove.insert(node.parent());

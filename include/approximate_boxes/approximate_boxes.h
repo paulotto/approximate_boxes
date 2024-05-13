@@ -97,6 +97,23 @@ namespace approx_boxes {
             }
 
             /**
+             * @brief Set if the root node should be removed from the list of nodes inside the boundary.
+             * @param remove True if the root node should be removed, false otherwise.
+             */
+            void SetRemoveRootNode(bool remove) {
+                remove_root_node_ = remove;
+            }
+
+            /**
+             * @brief Set if larger boxes should be divided into smaller boxes.
+             * Necessary for a completely connected mesh.
+             * @param divide True if larger boxes should be divided, false otherwise.
+             */
+            void SetDivideLargerBboxes(bool divide) {
+                divide_larger_bboxes_ = divide;
+            }
+
+            /**
              * @brief Dump the polyhedra to a Gmsh file.
              * @param filename The path to the Gmsh file to write the polyhedra to.
              */
@@ -119,6 +136,29 @@ namespace approx_boxes {
              * @return The side of the point relative to the mesh.
              */
             static CGAL::Bounded_side IsPointInside(const Point& p, const SurfaceMesh& msh);
+
+            /**
+             * @brief Find the smallest box size from a list of bounding boxes.
+             * @param boxes The list of bounding boxes to find the smallest box size from.
+             * @return The smallest box size.
+             */
+            static double FindSmallestBoxSize(const std::vector<CGAL::Bbox_3>& boxes);
+
+            /**
+             * @brief Extract the bounding boxes from the octree.
+             * @param octree The octree to extract the bounding boxes from.
+             * @param nodes The list of nodes to extract the bounding boxes from.
+             * @param bboxes The list of bounding boxes to extract.
+             */
+            static void ExtractBoundingBoxes(const Octree& octree,
+                                             const Node_vector& nodes,
+                                             std::vector<CGAL::Bbox_3>& bboxes);
+
+            /**
+             * @brief Divide larger boxes into smaller boxes.
+             * @param boxes The list of bounding boxes to divide.
+             */
+            static void DivideLargerBoxes(std::vector<CGAL::Bbox_3>& boxes);
 
             /**
              * @brief Create a surface mesh from a list of bounding boxes.
@@ -156,13 +196,18 @@ namespace approx_boxes {
             }
 
         private:
+            bool remove_root_node_{true};
+
+            // Necessary for a completely connected mesh. If true, the bounding boxes will all have the same size.
+            bool divide_larger_bboxes_{false};
+
             SurfaceMesh mesh_{};
             Polyhedron polyhedron_combined_{};
             std::list<Polyhedron> polyhedron_list_{};
 
             HexahedronMesh<Polyhedron> hex_mesh_{};
 
-            unsigned int octree_max_depth_{100};
+            unsigned int octree_max_depth_{50};
             unsigned int octree_max_inliers_{1};
 
             std::ifstream surface_file_stream_{""};
