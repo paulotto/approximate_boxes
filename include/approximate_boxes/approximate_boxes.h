@@ -80,6 +80,15 @@ namespace approx_boxes {
             }
 
             /**
+             * @brief Set the number of threads to use for building the hexahedral mesh.
+             * If 0, the number of threads is set to the maximum.
+             * @param threads The number of threads to use.
+             */
+            void SetNumberOfThreads(size_t threads = 0) {
+                threads_ = threads;
+            }
+
+            /**
              * @brief Set the maximum depth of the octree.
              * @param depth The maximum depth of the octree.
              */
@@ -196,6 +205,9 @@ namespace approx_boxes {
             }
 
         private:
+            // Number of threads used to build the hexahedral mesh.
+            // If 0, the number of threads is set to the maximum.
+            size_t threads_{0};
             bool remove_root_node_{true};
 
             // Necessary for a completely connected mesh. If true, the bounding boxes will all have the same size.

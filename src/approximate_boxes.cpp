@@ -94,7 +94,7 @@ namespace approx_boxes {
         std::cout << "\n\n";
 
         hex_mesh_.SetPolyhedronList(polyhedron_list_);
-        hex_mesh_.BuildMesh();
+        hex_mesh_.BuildMesh(threads_);
     }
 
     template<typename Kernel>

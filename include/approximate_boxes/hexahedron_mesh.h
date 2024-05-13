@@ -133,14 +133,11 @@ namespace approx_boxes {
                         << " elements." << '\n';
             }
 
-            /**
-             * @brief Build the mesh and write it to a Gmsh file.
-             * @param gmsh_file The filename of the Gmsh file.
-             */
-            virtual void BuildMesh(const std::string& gmsh_file) {
-                BuildMesh();
-                WriteGmshFile(gmsh_file);
-                std::cout << "[HexahedronMesh] Wrote mesh to Gmsh file: " << gmsh_file << '\n';
+            virtual void BuildMesh(size_t threads) {
+                AddNodes(threads);
+                AddElements(threads);
+                std::cout << "[HexahedronMesh] Built mesh with " << nodes_.size() << " nodes and " << elements_.size()
+                        << " elements." << '\n';
             }
 
             /**
@@ -187,9 +184,22 @@ namespace approx_boxes {
             virtual void AddNodes();
 
             /**
+             * @brief [Experimental] Add the nodes to the mesh. Don't know if it is even possible to use
+             * multiple threads with the current implementation.
+             * @param threads The number of threads to use.
+             */
+            virtual void AddNodes(size_t threads);
+
+            /**
              * @brief Add the elements to the mesh.
              */
             virtual void AddElements();
+
+            /**
+             * @brief [Experimental] Add the elements to the mesh.
+             * @param threads The number of threads to use.
+             */
+            virtual void AddElements(size_t threads);
 
             /**
              * @brief Calculate the tolerance to determine if two nodes are the same.

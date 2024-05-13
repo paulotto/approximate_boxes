@@ -30,6 +30,7 @@ int main(int argc, char* argv[]) {
     std::string filename(argv[1]);
 
     ApproximateBoxes<CartKernel> abox(filename);
+    abox.SetNumberOfThreads(0);
     abox.ApproximateGeometry();
 
     filename.erase(filename.size() - 3);

@@ -10,6 +10,8 @@
  * @date 10.05.2024
  */
 
+#include <mutex>
+#include <thread>
 #include <iostream>
 #include <filesystem>
 
@@ -246,6 +248,79 @@ namespace approx_boxes {
     }
 
     template<typename Polyhedron_T>
+    void HexahedronMesh<Polyhedron_T>::AddNodes(size_t threads) {
+        double tolerance = CalculateTolerance();
+        same_node_tolerance_ = tolerance;
+
+        if (!CheckPolyhedraNodes(polyhedron_list_)) {
+            throw std::runtime_error("[HexahedronMesh<Polyhedron_T>::AddNodes] Not all polyhedra have 8 nodes!");
+        }
+
+        std::cout << "[HexahedronMesh] Add nodes to the mesh...\n";
+
+        const double total_polyhedrons = polyhedron_list_.size();
+        int processed_polyhedrons = 0;
+
+        std::mutex nodes_mutex;
+        std::mutex node_polyhedron_multimap_mutex;
+
+        auto process_polyhedron = [&](const auto& polyhedron) {
+            for (const auto& vertex: polyhedron.points()) {
+                nodes_mutex.lock();
+                auto node_it = std::find_if(nodes_.begin(), nodes_.end(), [&vertex, tolerance](const auto& n) {
+                    // return CGAL::squared_distance(n->pos, vertex) < tolerance * tolerance;
+                    return n->pos == vertex;
+                });
+
+                if (node_it != nodes_.end()) {
+                    node_polyhedron_multimap_mutex.lock();
+                    node_polyhedron_multimap_.insert({*node_it, &polyhedron});
+                    node_polyhedron_multimap_mutex.unlock();
+                } else {
+                    auto* node = new Node();
+                    node->pos = vertex;
+                    nodes_.insert(node);
+                    node_polyhedron_multimap_mutex.lock();
+                    node_polyhedron_multimap_.insert({node, &polyhedron});
+                    node_polyhedron_multimap_mutex.unlock();
+                }
+                nodes_mutex.unlock();
+            }
+            processed_polyhedrons++;
+            utils::PrintProgress(static_cast<double>(processed_polyhedrons) / total_polyhedrons);
+        };
+
+        // Divide polyhedron_list_ into chunks and process each chunk in a separate thread
+        const size_t num_threads = threads ? threads : std::thread::hardware_concurrency();
+        const size_t chunk_size = (polyhedron_list_.size() + num_threads - 1) / num_threads;
+
+        std::vector<std::thread> threads_vector;
+        auto it = polyhedron_list_.begin();
+        for (size_t i = 0; i < num_threads; ++i) {
+            auto end_it = std::next(
+                it, std::min(chunk_size, static_cast<size_t>(std::distance(it, polyhedron_list_.end()))));
+
+            threads_vector.emplace_back([=, &process_polyhedron] {
+                std::for_each(it, end_it, process_polyhedron);
+            });
+
+            it = end_it;
+        }
+
+        // Wait for all threads to finish
+        for (auto& thread: threads_vector) {
+            thread.join();
+        }
+
+        std::cout << "\n\n";
+
+        unsigned int tag{1};
+        for (const auto& node: nodes_) {
+            node->tag = tag++;
+        }
+    }
+
+    template<typename Polyhedron_T>
     void HexahedronMesh<Polyhedron_T>::AddElements() {
         unsigned int elem_tag{1};
 
@@ -274,6 +349,54 @@ namespace approx_boxes {
         }
         std::cout << "[HexahedronMesh<Polyhedron_T>::AddElements] Number of elements: " << elements_.size() << '\n';
 #endif
+    }
+
+    template<typename Polyhedron_T>
+    void HexahedronMesh<Polyhedron_T>::AddElements(size_t threads) {
+        std::atomic<unsigned int> elem_tag{1};
+
+        std::cout << "[HexahedronMesh] Add elements to the mesh...\n";
+
+        const double total_polyhedrons = polyhedron_list_.size();
+        int processed_polyhedrons = 0;
+
+        std::mutex elements_mutex;
+
+        auto process_polyhedron = [&](const auto& poly) {
+            auto keys = GetKeysWithSameValue<Node*, const Polyhedron_T*>(
+                node_polyhedron_multimap_, &poly);
+
+            elements_mutex.lock();
+            elements_.push_back(new Element(elem_tag++, keys, ComputeBoundingBoxPolyhedron(poly)));
+            elements_mutex.unlock();
+
+            processed_polyhedrons++;
+            utils::PrintProgress(static_cast<double>(processed_polyhedrons) / total_polyhedrons);
+        };
+
+        // Divide polyhedron_list_ into chunks and process each chunk in a separate thread
+        const size_t num_threads = std::thread::hardware_concurrency();
+        const size_t chunk_size = (polyhedron_list_.size() + num_threads - 1) / num_threads;
+
+        std::vector<std::thread> threads_vector;
+        auto it = polyhedron_list_.begin();
+        for (size_t i = 0; i < num_threads; ++i) {
+            auto end_it = std::next(
+                it, std::min(chunk_size, static_cast<size_t>(std::distance(it, polyhedron_list_.end()))));
+
+            threads_vector.emplace_back([=, &process_polyhedron] {
+                std::for_each(it, end_it, process_polyhedron);
+            });
+
+            it = end_it;
+        }
+
+        // Wait for all threads to finish
+        for (auto& thread: threads_vector) {
+            thread.join();
+        }
+
+        std::cout << "\n\n";
     }
 
     template<typename Polyhedron_T>
