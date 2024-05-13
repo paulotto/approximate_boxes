@@ -31,6 +31,7 @@ int main(int argc, char* argv[]) {
 
     ApproximateBoxes<CartKernel> abox(filename);
     abox.SetNumberOfThreads(0);
+    abox.SetDivideLargerBboxes(false);
     abox.ApproximateGeometry();
 
     filename.erase(filename.size() - 3);
