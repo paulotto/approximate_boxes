@@ -43,9 +43,10 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # Add all the .cpp files in the src/ directory to the build
 file(GLOB SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
+file(GLOB HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/include/approximate_boxes/*.h")
 
 # Make an automatic library - will be static or dynamic based on user setting
-add_library(libApproximateBoxes STATIC ${SOURCES})
+add_library(libApproximateBoxes STATIC ${SOURCES} ${HEADERS})
 set_target_properties(libApproximateBoxes PROPERTIES OUTPUT_NAME "ApproximateBoxes")
 
 target_include_directories(libApproximateBoxes PUBLIC
