@@ -184,8 +184,7 @@ namespace approx_boxes {
             virtual void AddNodes();
 
             /**
-             * @brief [Experimental] Add the nodes to the mesh. Don't know if it is even possible to use
-             * multiple threads with the current implementation.
+             * @brief [Experimental] Add the nodes to the mesh.
              * @param threads The number of threads to use.
              */
             virtual void AddNodes(size_t threads);
@@ -196,7 +195,8 @@ namespace approx_boxes {
             virtual void AddElements();
 
             /**
-             * @brief [Experimental] Add the elements to the mesh.
+             * @brief [Experimental] Add the elements to the mesh. Don't know if it is even reasonable to use
+             * multiple threads with the current implementation.
              * @param threads The number of threads to use.
              */
             virtual void AddElements(size_t threads);

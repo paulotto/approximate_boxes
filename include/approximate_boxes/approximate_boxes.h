@@ -211,7 +211,7 @@ namespace approx_boxes {
             bool remove_root_node_{true};
 
             // Necessary for a completely connected mesh. If true, the bounding boxes will all have the same size.
-            bool divide_larger_bboxes_{false};
+            bool divide_larger_bboxes_{true};
 
             SurfaceMesh mesh_{};
             Polyhedron polyhedron_combined_{};
