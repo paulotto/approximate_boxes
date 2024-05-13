@@ -10,6 +10,8 @@
  * @date 10.05.2024
  */
 
+#include <mutex>
+#include <thread>
 #include <filesystem>
 
 #include <CGAL/Surface_mesh/IO/OFF.h>
@@ -81,16 +83,44 @@ namespace approx_boxes {
         const auto total_bboxes = static_cast<const double>(bboxes.size());
         int processed_bboxes = 0;
 
-        for (const auto& bbox: bboxes) {
+        std::mutex polyhedron_list_mutex;
+
+        auto process_bbox = [&](const auto& bbox) {
             BuildPolyhedronFromBbox build_polyhedron(bbox);
             polyhedron_combined_.delegate(build_polyhedron);
             Polyhedron poly{};
             poly.delegate(build_polyhedron);
+
+            polyhedron_list_mutex.lock();
             polyhedron_list_.push_back(poly);
+            polyhedron_list_mutex.unlock();
 
             processed_bboxes++;
             utils::PrintProgress(static_cast<double>(processed_bboxes) / total_bboxes);
+        };
+
+        // Divide bboxes into chunks and process each chunk in a separate thread
+        const size_t num_threads = threads_ ? threads_ : std::thread::hardware_concurrency();
+        const size_t chunk_size = (bboxes.size() + num_threads - 1) / num_threads;
+
+        std::vector<std::thread> threads_vector;
+        auto it = bboxes.begin();
+        for (size_t i = 0; i < num_threads; ++i) {
+            auto end_it = std::next(
+                it, std::min(chunk_size, static_cast<size_t>(std::distance(it, bboxes.end()))));
+
+            threads_vector.emplace_back([=, &process_bbox] {
+                std::for_each(it, end_it, process_bbox);
+            });
+
+            it = end_it;
         }
+
+        // Wait for all threads to finish
+        for (auto& thread: threads_vector) {
+            thread.join();
+        }
+
         std::cout << "\n\n";
 
         hex_mesh_.SetPolyhedronList(polyhedron_list_);
