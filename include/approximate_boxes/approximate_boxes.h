@@ -85,7 +85,7 @@ namespace approx_boxes {
              * @param threads The number of threads to use.
              */
             void SetNumberOfThreads(size_t threads = 0) {
-                threads_ = threads;
+                threads_ = threads ? threads : std::thread::hardware_concurrency();
             }
 
             /**

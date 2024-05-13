@@ -79,6 +79,7 @@ namespace approx_boxes {
         if (divide_larger_bboxes_) DivideLargerBoxes(bboxes);
 
         std::cout << "[ApproximateBoxes] Building polyhedra from " << bboxes.size() << " bounding boxes..." << '\n';
+        std::cout << "[ApproximateBoxes] Using " << threads_ << " threads." << '\n';
 
         const auto total_bboxes = static_cast<const double>(bboxes.size());
         int processed_bboxes = 0;
@@ -100,7 +101,7 @@ namespace approx_boxes {
         };
 
         // Divide bboxes into chunks and process each chunk in a separate thread
-        const size_t num_threads = threads_ ? threads_ : std::thread::hardware_concurrency();
+        const size_t num_threads = threads_;
         const size_t chunk_size = (bboxes.size() + num_threads - 1) / num_threads;
 
         std::vector<std::thread> threads_vector;
