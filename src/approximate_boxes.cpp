@@ -81,51 +81,35 @@ namespace approx_boxes {
         std::cout << "[ApproximateBoxes] Building polyhedra from " << bboxes.size() << " bounding boxes..." << '\n';
         std::cout << "[ApproximateBoxes] Using " << threads_ << " threads." << '\n';
 
-        const auto total_bboxes = static_cast<const double>(bboxes.size());
-        int processed_bboxes = 0;
+        BuildHexahedralMesh(bboxes);
+    }
 
-        std::mutex polyhedron_list_mutex;
+    template<typename Kernel>
+    void ApproximateBoxes<Kernel>::ApproximateGeometrySimple(CGAL::Vector_3<Kernel> factor) {
+        CGAL::Bbox_3 surface_bbox{};
+        ComputeSurfaceMeshBoundingBox(mesh_, surface_bbox);
 
-        auto process_bbox = [&](const auto& bbox) {
-            BuildPolyhedronFromBbox build_polyhedron(bbox);
-            polyhedron_combined_.delegate(build_polyhedron);
-            Polyhedron poly{};
-            poly.delegate(build_polyhedron);
+        std::vector<CGAL::Bbox_3> bboxes_grid;
+        bboxes_grid.push_back(surface_bbox);
 
-            polyhedron_list_mutex.lock();
-            polyhedron_list_.push_back(poly);
-            polyhedron_list_mutex.unlock();
+        DivideLargerBox(factor, bboxes_grid);
 
-            processed_bboxes++;
-            utils::PrintProgress(static_cast<double>(processed_bboxes) / total_bboxes);
-        };
+        std::vector<CGAL::Bbox_3> bboxes;
+        for (const auto& bbox: bboxes_grid) {
+            // Center
+            double x = (bbox.xmin() + bbox.xmax()) / 2.0;
+            double y = (bbox.ymin() + bbox.ymax()) / 2.0;
+            double z = (bbox.zmin() + bbox.zmax()) / 2.0;
 
-        // Divide bboxes into chunks and process each chunk in a separate thread
-        const size_t num_threads = threads_;
-        const size_t chunk_size = (bboxes.size() + num_threads - 1) / num_threads;
-
-        std::vector<std::thread> threads_vector;
-        auto it = bboxes.begin();
-        for (size_t i = 0; i < num_threads; ++i) {
-            auto end_it = std::next(
-                it, std::min(chunk_size, static_cast<size_t>(std::distance(it, bboxes.end()))));
-
-            threads_vector.emplace_back([=, &process_bbox] {
-                std::for_each(it, end_it, process_bbox);
-            });
-
-            it = end_it;
+            if (Point center{x, y, z}; IsPointInside(center, mesh_) == CGAL::ON_BOUNDED_SIDE) {
+                bboxes.push_back(bbox);
+            }
         }
 
-        // Wait for all threads to finish
-        for (auto& thread: threads_vector) {
-            thread.join();
-        }
+        std::cout << "[ApproximateBoxes] Building polyhedra from " << bboxes.size() << " bounding boxes..." << '\n';
+        std::cout << "[ApproximateBoxes] Using " << threads_ << " threads." << '\n';
 
-        std::cout << "\n\n";
-
-        hex_mesh_.SetPolyhedronList(polyhedron_list_);
-        hex_mesh_.BuildMesh(threads_);
+        BuildHexahedralMesh(bboxes);
     }
 
     template<typename Kernel>
@@ -158,6 +142,42 @@ namespace approx_boxes {
     }
 
     template<typename Kernel>
+    void ApproximateBoxes<Kernel>::DivideLargerBox(CGAL::Vector_3<Kernel> factor, std::vector<CGAL::Bbox_3>& boxes) {
+        // Get the original box
+        const CGAL::Bbox_3 original_box = boxes.back();
+        boxes.pop_back();
+
+        // Calculate the dimensions of the original box
+        double original_width = original_box.xmax() - original_box.xmin();
+        double original_height = original_box.ymax() - original_box.ymin();
+        double original_depth = original_box.zmax() - original_box.zmin();
+
+        // Calculate the dimensions of the smaller boxes
+        const double width = original_width / factor.x();
+        const double height = original_height / factor.y();
+        const double depth = original_depth / factor.z();
+
+        // Calculate the number of smaller boxes in each dimension
+        const int num_boxes_x = static_cast<int>(factor.x());
+        const int num_boxes_y = static_cast<int>(factor.y());
+        const int num_boxes_z = static_cast<int>(factor.z());
+
+        // Create the smaller boxes
+        for (int i = 0; i < num_boxes_x; ++i) {
+            for (int j = 0; j < num_boxes_y; ++j) {
+                for (int k = 0; k < num_boxes_z; ++k) {
+                    const double xmin = original_box.xmin() + i * width;
+                    const double ymin = original_box.ymin() + j * height;
+                    const double zmin = original_box.zmin() + k * depth;
+
+                    CGAL::Bbox_3 new_box(xmin, ymin, zmin, xmin + width, ymin + height, zmin + depth);
+                    boxes.push_back(new_box);
+                }
+            }
+        }
+    }
+
+    template<typename Kernel>
     void ApproximateBoxes<Kernel>::DivideLargerBoxes(std::vector<CGAL::Bbox_3>& boxes) {
         const double min_size = FindSmallestBoxSize(boxes);
 
@@ -166,28 +186,23 @@ namespace approx_boxes {
             if (const double size = box.xmax() - box.xmin(); size > min_size) {
                 // Divide the bounding box into smaller boxes of size min_size
                 const int num_divisions = static_cast<int>(size / min_size);
-                for (int i = 0; i < num_divisions; ++i) {
-                    for (int j = 0; j < num_divisions; ++j) {
-                        for (int k = 0; k < num_divisions; ++k) {
-                            // Create a new bounding box of size min_size
-                            CGAL::Bbox_3 new_box(
-                                box.xmin() + i * min_size,
-                                box.ymin() + j * min_size,
-                                box.zmin() + k * min_size,
-                                box.xmin() + (i + 1) * min_size,
-                                box.ymin() + (j + 1) * min_size,
-                                box.zmin() + (k + 1) * min_size
-                            );
-                            divided_boxes.push_back(new_box);
-                        }
-                    }
-                }
+                CGAL::Vector_3<Kernel> factor(num_divisions, num_divisions, num_divisions);
+                std::vector<CGAL::Bbox_3> temp_boxes = {box};
+                DivideLargerBox(factor, temp_boxes);
+                divided_boxes.insert(divided_boxes.end(), temp_boxes.begin(), temp_boxes.end());
             } else {
                 divided_boxes.push_back(box);
             }
         }
 
         boxes = divided_boxes;
+    }
+
+    template<typename Kernel>
+    void ApproximateBoxes<Kernel>::ComputeSurfaceMeshBoundingBox(const SurfaceMesh& mesh, CGAL::Bbox_3& bbox) {
+        for (auto v: mesh.vertices()) {
+            bbox += mesh.point(v).bbox();
+        }
     }
 
     template<typename Kernel>
@@ -243,6 +258,55 @@ namespace approx_boxes {
         for (const auto& node: nodes_to_remove) {
             nodes_inside.erase(std::remove(nodes_inside.begin(), nodes_inside.end(), node), nodes_inside.end());
         }
+    }
+
+    template<typename Kernel>
+    void ApproximateBoxes<Kernel>::BuildHexahedralMesh(const std::vector<CGAL::Bbox_3>& bboxes) {
+        const auto total_bboxes = static_cast<const double>(bboxes.size());
+        int processed_bboxes = 0;
+
+        std::mutex polyhedron_list_mutex;
+
+        auto process_bbox = [&](const auto& bbox) {
+            BuildPolyhedronFromBbox build_polyhedron(bbox);
+            polyhedron_combined_.delegate(build_polyhedron);
+            Polyhedron poly{};
+            poly.delegate(build_polyhedron);
+
+            polyhedron_list_mutex.lock();
+            polyhedron_list_.push_back(poly);
+            polyhedron_list_mutex.unlock();
+
+            processed_bboxes++;
+            utils::PrintProgress(static_cast<double>(processed_bboxes) / total_bboxes);
+        };
+
+        // Divide bboxes into chunks and process each chunk in a separate thread
+        const size_t num_threads = threads_;
+        const size_t chunk_size = (bboxes.size() + num_threads - 1) / num_threads;
+
+        std::vector<std::thread> threads_vector;
+        auto it = bboxes.begin();
+        for (size_t i = 0; i < num_threads; ++i) {
+            auto end_it = std::next(
+                it, std::min(chunk_size, static_cast<size_t>(std::distance(it, bboxes.end()))));
+
+            threads_vector.emplace_back([=, &process_bbox] {
+                std::for_each(it, end_it, process_bbox);
+            });
+
+            it = end_it;
+        }
+
+        // Wait for all threads to finish
+        for (auto& thread: threads_vector) {
+            thread.join();
+        }
+
+        std::cout << "\n\n";
+
+        hex_mesh_.SetPolyhedronList(polyhedron_list_);
+        hex_mesh_.BuildMesh(threads_);
     }
 
     template class ApproximateBoxes<CGAL::Simple_cartesian<double> >;

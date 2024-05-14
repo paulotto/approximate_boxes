@@ -139,6 +139,8 @@ namespace approx_boxes {
              */
             virtual void ApproximateGeometry();
 
+            virtual void ApproximateGeometrySimple(CGAL::Vector_3<Kernel> factor);
+
             /**
              * @brief Check if a point is inside the mesh.
              * @param p The point to check.
@@ -164,10 +166,26 @@ namespace approx_boxes {
                                              std::vector<CGAL::Bbox_3>& bboxes);
 
             /**
-             * @brief Divide larger boxes into smaller boxes.
+             * @brief Divide a larger box into smaller boxes. The box needs to be inside 'boxes'.
+             * @param factor The factor to divide the box by (x, y, z).
+             * @param boxes The list of bounding boxes which contains the box to divide initially and is used to
+             * store the smaller boxes. The original box is removed from the list.
+             */
+            static void DivideLargerBox(CGAL::Vector_3<Kernel> factor, std::vector<CGAL::Bbox_3>& boxes);
+
+            /**
+             * @brief Divide larger boxes into smaller boxes. The dimension of the smaller boxes is determined
+             * by the smallest box size in 'boxes'.
              * @param boxes The list of bounding boxes to divide.
              */
             static void DivideLargerBoxes(std::vector<CGAL::Bbox_3>& boxes);
+
+            /**
+             * @brief Compute the bounding box of a surface mesh.
+             * @param mesh The mesh to compute the bounding box for.
+             * @param bbox The bounding box to compute.
+             */
+            static void ComputeSurfaceMeshBoundingBox(const SurfaceMesh& mesh, CGAL::Bbox_3& bbox);
 
             /**
              * @brief Create a surface mesh from a list of bounding boxes.
@@ -190,6 +208,12 @@ namespace approx_boxes {
              * @param nodes_inside The list of nodes inside the boundary.
              */
             virtual void RemoveParentNodes(Octree& octree, Node_vector& nodes_inside);
+
+            /**
+             * @brief Build a hexahedral mesh from bounding boxes.
+             * @param bboxes The list of bounding boxes to build the hexahedral mesh from.
+             */
+            virtual void BuildHexahedralMesh(const std::vector<CGAL::Bbox_3>& bboxes);
 
             /**
              * @brief Get all points of a surface mesh.

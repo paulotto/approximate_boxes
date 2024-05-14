@@ -37,9 +37,9 @@ It leverages the power of the Computational Geometry Algorithms Library (CGAL) t
     ```
 ## Usage
 
-After building the project, you can run the example program with the following command:
+After building the project, you can run the example program that uses an octree with the following command:
 ```bash
-./bin/ApproximateBoxesExample "../resources/ellipsoid.off"
+./bin/ApproximateBoxesExampleOctree "../resources/ellipsoid.off"
 ```
 This command will generate a Gmsh file with the boxes approximating the volume of the ellipsoid, 
 placed in the [resources](./resources) folder. 
@@ -58,15 +58,33 @@ where the ellipsoid is approximated with and without dividing the boxes.
 >**Note**: If the boxes are divided, the number of boxes will increase significantly, 
 >leading to longer computation times.
 
-### Ellipsoid Approximation without divided Boxes
+### Ellipsoid Approximation Without Dividing the Boxes
 | ![](resources/ellipsoid_orig.png) | ![](resources/ellipsoid_orig_approx.png) | ![](resources/ellipsoid_approx.png) |
 |:---------------------------------:|:----------------------------------------:|:-----------------------------------:|  
 |             Ellipsoid             |        Ellipsoid + Approximation         |          Approximation Cut          |
 
-### Ellipsoid Approximation with divided Boxes
+### Ellipsoid Approximation With Dividing the Boxes
 | ![](resources/ellipsoid_orig.png) | ![](resources/ellipsoid_orig_approx_div.png) | ![](resources/ellipsoid_approx_div.png) |
 |:---------------------------------:|:--------------------------------------------:|:---------------------------------------:|  
 |             Ellipsoid             |          Ellipsoid + Approximation           |            Approximation Cut            |
+
+### Simple Approximation Implementation
+There is also a simpler implementation of the approximation without using an octree. Here, the bounding box of the
+geometry is divided into smaller boxes, which are then checked for intersection with the geometry.
+
+To run the example for this implementation, use the following command:
+```bash
+./bin/ApproximateBoxesExampleSimple "../resources/ellipsoid.off"
+```
+
+>**Note**: The dimensions of the approximating boxes are determined by the dividing factor that is used to divide
+> the bounding box of the geometry. The smaller the dividing factor, the smaller the boxes and the more accurate the 
+> approximation. The dividing factor can be set for each dimension individually as parameter of the function 
+> ``` ApproximateBoxes<>::ApproximateGeometrySimple(CGAL::Vector_3<>) ```
+
+| ![](resources/ellipsoid_orig.png) | ![](resources/ellipsoid_orig_approx_simple.png) | ![](resources/ellipsoid_approx_simple.png) |
+|:---------------------------------:|:-----------------------------------------------:|:------------------------------------------:|  
+|             Ellipsoid             |            Ellipsoid + Approximation            |             Approximation Cut              |
 
 ## License
 This project is licensed under the LGPL-3.0 License. See the [LICENSE](LICENSE) file for more details.
