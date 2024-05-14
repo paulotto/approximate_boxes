@@ -1,10 +1,10 @@
 /**
-* @file example.cpp
+* @file example_octree.cpp
  * @brief MIT License
  *
  * Copyright (c) 2024 Paul-Otto Müller <https://github.com/paulotto>
  * License: LGPL-3.0-or-later (https://github.com/paulotto/approximate_boxes/blob/main/LICENSE)
- * URL: https://github.com/paulotto/approximate_boxes/blob/main/example/example.cpp
+ * URL: https://github.com/paulotto/approximate_boxes/blob/main/example/example_octree.cpp
  *
  * @author Paul-Otto Müller
  * @date 11.05.2024

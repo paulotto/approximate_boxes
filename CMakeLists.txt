@@ -55,6 +55,8 @@ target_include_directories(libApproximateBoxes PUBLIC
 target_link_libraries(libApproximateBoxes CGAL::CGAL)
 
 # Add an executable
-add_executable(ApproximateBoxesExample example/example.cpp)
+add_executable(ApproximateBoxesExampleOctree example/example_octree.cpp)
+add_executable(ApproximateBoxesExampleSimple example/example_simple.cpp)
 
-target_link_libraries(ApproximateBoxesExample libApproximateBoxes)
+target_link_libraries(ApproximateBoxesExampleOctree libApproximateBoxes)
+target_link_libraries(ApproximateBoxesExampleSimple libApproximateBoxes)
