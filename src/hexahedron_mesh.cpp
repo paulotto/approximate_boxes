@@ -164,8 +164,8 @@ namespace approx_boxes {
         double min_length = std::numeric_limits<double>::max();
 
         for (const auto& edge: polyhedron.edges()) {
-            double length = CGAL::squared_distance(edge.vertex()->point(), edge.opposite()->vertex()->point());
-            if (length < min_length) {
+            if (const double length = CGAL::squared_distance(edge.vertex()->point(), edge.opposite()->vertex()->point())
+                ; length < min_length) {
                 min_length = length;
             }
         }
@@ -175,31 +175,44 @@ namespace approx_boxes {
 
     template<typename Polyhedron_T>
     void HexahedronMesh<Polyhedron_T>::SortNodesForGmsh(std::vector<Node*>& nodes) {
-        // First, find the center of the nodes
-        double center_x = 0.0, center_y = 0.0, center_z = 0.0;
+        // Calculate the centroid of the nodes
+        double cx = 0.0, cy = 0.0, cz = 0.0;
         for (const auto& node: nodes) {
-            center_x += node->pos.x();
-            center_y += node->pos.y();
-            center_z += node->pos.z();
+            cx += node->pos.x();
+            cy += node->pos.y();
+            cz += node->pos.z();
         }
-        center_x /= static_cast<double>(nodes.size());
-        center_y /= static_cast<double>(nodes.size());
-        center_z /= static_cast<double>(nodes.size());
+        cx /= nodes.size();
+        cy /= nodes.size();
+        cz /= nodes.size();
 
-        Node center;
-        center.pos = Point(center_x, center_y, center_z);
+        // Define a lambda function to calculate the angle between a node and the centroid in the XY plane
+        auto AngleFromCenter = [&cx, &cy](const Node* node) -> double {
+            return std::atan2(node->pos.y() - cy, node->pos.x() - cx);
+        };
 
-        // Then, sort the nodes based on their angle from the center in the XY plane
-        std::sort(nodes.begin(), nodes.end(), [&center](const Node* a, const Node* b) {
-            const double angleA = std::atan2(a->pos.y() - center.pos.y(), a->pos.x() - center.pos.x());
-            const double angleB = std::atan2(b->pos.y() - center.pos.y(), b->pos.x() - center.pos.x());
-            return angleA < angleB;
+        // Separate nodes into two layers (bottom and top) based on their Z-coordinate
+        std::vector<Node*> bottom_nodes, top_nodes;
+        for (const auto& node: nodes) {
+            if (node->pos.z() < cz) {
+                bottom_nodes.push_back(node);
+            } else {
+                top_nodes.push_back(node);
+            }
+        }
+
+        // Sort nodes within each layer based on their angle from the centroid
+        std::sort(bottom_nodes.begin(), bottom_nodes.end(), [&](const Node* a, const Node* b) -> bool {
+            return AngleFromCenter(a) < AngleFromCenter(b);
+        });
+        std::sort(top_nodes.begin(), top_nodes.end(), [&](const Node* a, const Node* b) -> bool {
+            return AngleFromCenter(a) < AngleFromCenter(b);
         });
 
-        // Finally, sort the nodes based on their Z coordinate, keeping the order within each Z level
-        std::stable_sort(nodes.begin(), nodes.end(), [](const Node* a, const Node* b) {
-            return a->pos.z() < b->pos.z();
-        });
+        // Concatenate the two layers to form the final sorted list of nodes
+        nodes.clear();
+        nodes.insert(nodes.end(), bottom_nodes.begin(), bottom_nodes.end());
+        nodes.insert(nodes.end(), top_nodes.begin(), top_nodes.end());
     }
 
     template<typename Polyhedron_T>
@@ -219,8 +232,7 @@ namespace approx_boxes {
         for (const auto& polyhedron: polyhedron_list_) {
             for (const auto& vertex: polyhedron.points()) {
                 auto node_it = std::find_if(nodes_.begin(), nodes_.end(), [&vertex, tolerance](const auto& n) {
-                    // return CGAL::squared_distance(n->pos, vertex) < tolerance * tolerance;
-                    return n->pos == vertex;
+                    return CGAL::squared_distance(n->pos, vertex) < tolerance * tolerance;
                 });
 
                 if (node_it != nodes_.end()) {
@@ -268,8 +280,7 @@ namespace approx_boxes {
             for (const auto& vertex: polyhedron.points()) {
                 nodes_mutex.lock();
                 auto node_it = std::find_if(nodes_.begin(), nodes_.end(), [&vertex, tolerance](const auto& n) {
-                    // return CGAL::squared_distance(n->pos, vertex) < tolerance * tolerance;
-                    return n->pos == vertex;
+                    return CGAL::squared_distance(n->pos, vertex) < tolerance * tolerance;
                 });
 
                 if (node_it != nodes_.end()) {
@@ -404,15 +415,14 @@ namespace approx_boxes {
         double min_edge_length = std::numeric_limits<double>::max();
 
         for (const auto& polyhedron: polyhedron_list_) {
-            double edge_length = SmallestEdgeLength(polyhedron);
-            if (edge_length < min_edge_length) {
+            if (const double edge_length = SmallestEdgeLength(polyhedron); edge_length < min_edge_length) {
                 min_edge_length = edge_length;
             }
         }
 
         // Set the tolerance to a fraction of the smallest edge length
         // The fraction can be adjusted as needed
-        return min_edge_length * 0.1;
+        return min_edge_length * 0.01;
     }
 
     template class HexahedronMesh<CGAL::Polyhedron_3<CGAL::Simple_cartesian<double> > >;

@@ -133,8 +133,13 @@ namespace approx_boxes {
                         << " elements." << '\n';
             }
 
+            /**
+             * @brief [Experimental] Build the mesh. Don't know if it is even reasonable to use multiple threads with
+             * the current implementation.
+             * @param threads The number of threads to use.
+             */
             virtual void BuildMesh(size_t threads) {
-                AddNodes(threads);
+                AddNodes(threads); // TODO: Need to change implementation to use threads
                 AddElements(threads);
                 std::cout << "[HexahedronMesh] Built mesh with " << nodes_.size() << " nodes and " << elements_.size()
                         << " elements." << '\n';
@@ -169,7 +174,9 @@ namespace approx_boxes {
             static double SmallestEdgeLength(const Polyhedron_T& polyhedron);
 
             /**
-             * @brief This function assumes that the nodes are already arranged in a way that forms a hexahedron.
+             * @brief This function assumes that the nodes form a hexahedron and that the Z-coordinate can be used to
+             * reliably separate the nodes into a bottom and top layer. If these assumptions do not hold,
+             * the function might not work correctly.
              * The nodes are sorted in-place according to the Gmsh ordering for a hexahedron:
              * 1. Bottom face, listed in counter-clockwise order as viewed from above.
              * 2. Top face, listed in counter-clockwise order as viewed from above.
@@ -184,7 +191,8 @@ namespace approx_boxes {
             virtual void AddNodes();
 
             /**
-             * @brief [Experimental] Add the nodes to the mesh.
+             * @brief [Experimental] Add the nodes to the mesh. Don't know if it is even reasonable to use
+             * multiple threads with the current implementation.
              * @param threads The number of threads to use.
              */
             virtual void AddNodes(size_t threads);
