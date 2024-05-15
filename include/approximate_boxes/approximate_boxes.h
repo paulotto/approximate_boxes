@@ -139,6 +139,12 @@ namespace approx_boxes {
              */
             virtual void ApproximateGeometry();
 
+            /**
+             * @brief A simpler implementation to approximate a geometry with hexahedra. The bounding box of the
+             * geometry is divided into smaller elements determined by the dividing factor. The hexahedra outside
+             * the geometry are removed.
+             * @param factor The factor to divide the bounding boxes by (x, y, z).
+             */
             virtual void ApproximateGeometrySimple(CGAL::Vector_3<Kernel> factor);
 
             /**
