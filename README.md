@@ -58,12 +58,12 @@ where the ellipsoid is approximated with and without dividing the boxes.
 >**Note**: If the boxes are divided, the number of boxes will increase significantly, 
 >leading to longer computation times.
 
-### Ellipsoid Approximation Without Dividing the Boxes
+### Ellipsoid Approximation Without Dividing of the Boxes
 | ![](resources/ellipsoid_orig.png) | ![](resources/ellipsoid_orig_approx.png) | ![](resources/ellipsoid_approx.png) |
 |:---------------------------------:|:----------------------------------------:|:-----------------------------------:|  
 |             Ellipsoid             |        Ellipsoid + Approximation         |          Approximation Cut          |
 
-### Ellipsoid Approximation With Dividing the Boxes
+### Ellipsoid Approximation With Dividing of the Boxes
 | ![](resources/ellipsoid_orig.png) | ![](resources/ellipsoid_orig_approx_div.png) | ![](resources/ellipsoid_approx_div.png) |
 |:---------------------------------:|:--------------------------------------------:|:---------------------------------------:|  
 |             Ellipsoid             |          Ellipsoid + Approximation           |            Approximation Cut            |
